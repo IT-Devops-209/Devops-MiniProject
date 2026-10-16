@@ -8,6 +8,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.ptit.campushub.application.ApplicationDtos.ApplicationView;
+import vn.edu.ptit.campushub.application.ApplicationRepository;
+import vn.edu.ptit.campushub.bookmark.BookmarkRepository;
 import vn.edu.ptit.campushub.category.Category;
 import vn.edu.ptit.campushub.category.CategoryRepository;
 import vn.edu.ptit.campushub.comment.Comment;
@@ -33,19 +36,31 @@ public class PostService {
     private final UserRepository users;
     private final CommentRepository comments;
     private final ReactionRepository reactions;
+    private final ApplicationRepository applicationRepository;
+    private final BookmarkRepository bookmarkRepository;
 
-    public PostService(PostRepository posts, CategoryRepository categories, UserRepository users,
-                       CommentRepository comments, ReactionRepository reactions) {
+    public PostService(PostRepository posts,
+                       CategoryRepository categories,
+                       UserRepository users,
+                       CommentRepository comments,
+                       ReactionRepository reactions,
+                       ApplicationRepository applicationRepository,
+                       BookmarkRepository bookmarkRepository) {
         this.posts = posts;
         this.categories = categories;
         this.users = users;
         this.comments = comments;
         this.reactions = reactions;
+        this.applicationRepository = applicationRepository;
+        this.bookmarkRepository = bookmarkRepository;
     }
 
-    public PageView<PostView> search(String keyword, Long categoryId, int page, int size, Principal principal) {
+    public PageView<PostView> search(String keyword, Long categoryId, PostStatus status, int page, int size, Principal principal) {
         int safeSize = Math.min(Math.max(size, 1), 50);
-        Page<Post> result = posts.searchPublished(keyword == null ? "" : keyword.trim(), categoryId,
+        Page<Post> result = posts.searchPublished(
+                keyword == null ? "" : keyword.trim(),
+                categoryId,
+                status,
                 PageRequest.of(Math.max(page, 0), safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
         List<PostView> content = result.getContent().stream()
                 .map(post -> toView(post, principal, false))
@@ -90,6 +105,8 @@ public class PostService {
     public void delete(Long id, Principal principal) {
         Post post = findPost(id);
         requireOwnerOrAdmin(post, currentUser(principal));
+        applicationRepository.deleteByPostId(id);
+        bookmarkRepository.deleteByPostId(id);
         comments.deleteByPostId(id);
         reactions.deleteByPostId(id);
         posts.delete(post);
@@ -122,14 +139,30 @@ public class PostService {
         List<CommentView> commentViews = includeComments
                 ? comments.findByPostIdOrderByCreatedAtAsc(post.getId()).stream().map(CommentView::from).toList()
                 : List.of();
-        return new PostView(post.getId(), post.getTitle(), post.getContent(), post.getStatus(),
+
+        long applicationCount = applicationRepository.countByPostId(post.getId());
+        boolean bookmarked = current != null && bookmarkRepository.existsByPostIdAndUserId(post.getId(), current.getId());
+        ApplicationView myApp = current != null
+                ? applicationRepository.findByPostIdAndApplicantId(post.getId(), current.getId()).map(ApplicationView::from).orElse(null)
+                : null;
+
+        return new PostView(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getStatus(),
                 new CategoryView(post.getCategory().getId(), post.getCategory().getName(), post.getCategory().getSlug()),
-                new AuthorView(post.getAuthor().getId(), post.getAuthor().getUsername(),
-                        post.getAuthor().getDisplayName()),
-                post.getCreatedAt(), post.getUpdatedAt(), reactions.countByPostId(post.getId()),
+                new AuthorView(post.getAuthor().getId(), post.getAuthor().getUsername(), post.getAuthor().getDisplayName()),
+                post.getCreatedAt(),
+                post.getUpdatedAt(),
+                reactions.countByPostId(post.getId()),
                 comments.countByPostId(post.getId()),
+                applicationCount,
                 current != null && reactions.findByPostIdAndUserId(post.getId(), current.getId()).isPresent(),
-                commentViews);
+                bookmarked,
+                myApp,
+                commentViews
+        );
     }
 
     private Post findVisiblePost(Long id, Principal principal) {

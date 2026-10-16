@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
+import vn.edu.ptit.campushub.application.ApplicationDtos.ApplicationView;
 import vn.edu.ptit.campushub.comment.Comment;
 
 public final class PostDtos {
@@ -43,7 +44,9 @@ public final class PostDtos {
 
     public record PostView(Long id, String title, String content, PostStatus status,
                            CategoryView category, AuthorView author, Instant createdAt, Instant updatedAt,
-                           long reactionCount, long commentCount, boolean reactedByCurrentUser,
+                           long reactionCount, long commentCount, long applicationCount,
+                           boolean reactedByCurrentUser, boolean bookmarkedByCurrentUser,
+                           ApplicationView myApplication,
                            List<CommentView> comments) {
     }
 }
