@@ -1,8 +1,8 @@
 # Bài kiểm tra đầu giờ — Đóng gói và chạy Campus Hub với Docker
 
 ## Thông tin sinh viên
-- **Họ và tên:** [Họ và tên sinh viên]
-- **Mã sinh viên:** [Mã sinh viên]
+- **Họ và tên:** Nguyễn Quang Anh
+- **Mã sinh viên:** N24DTCn001
 - **Email:** qn50606@gmail.com
 - **Repository:** https://github.com/IT-Devops-209/Devops-TestDauGio.git
 
